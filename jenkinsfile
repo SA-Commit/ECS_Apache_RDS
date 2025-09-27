@@ -1,0 +1,28 @@
+pipeline {
+  agent any
+  environment {
+    AWS_ROLE_ARN = 'arn:aws:iam::<account-id>:role/JenkinsOIDCRole'
+    AWS_WEB_IDENTITY_TOKEN_FILE = '/var/run/secrets/eks.amazonaws.com/serviceaccount/token'
+  }
+  stages {
+    stage('Build') {
+      steps {
+        sh 'docker build -t apache-app .'
+      }
+    }
+    stage('Push') {
+      steps {
+        sh '''
+          aws ecr get-login-password | docker login --username AWS --password-stdin <your-ecr-url>
+          docker tag apache-app:latest <your-ecr-url>/apache-app:latest
+          docker push <your-ecr-url>/apache-app:latest
+        '''
+      }
+    }
+    stage('Deploy') {
+      steps {
+        sh 'terraform init && terraform apply -auto-approve'
+      }
+    }
+  }
+}
